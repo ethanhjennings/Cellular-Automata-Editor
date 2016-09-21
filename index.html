@@ -1,0 +1,288 @@
+<html>
+<head>
+    <script src="ace.js"></script>
+    <script src="Neighbors.js"></script>
+    <script src="PixelGrid.js"></script>
+    <style type="text/css">
+        .editor {
+            display: inline-block;
+            position: relative;
+            width: 45%;
+            height: 700px;
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+
+        .canvas-container {
+            display: inline-block;
+            width: 700px;
+            height: 700px;
+        }
+
+        .viewport {
+            width: 100%;
+            height: 100%;
+        }
+
+        .fps {
+            position: absolute;
+            z-index: 1;
+            width: 100%;
+            left: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+<div id="editor" class="editor">var codeObject = {
+    states: [0, 1],
+    update: function(lastState, neighbors) {
+        var liveNeighbors = neighbors.mooreCount(1);
+        
+        if (lastState === 0 && liveNeighbors !== 3) return 0;
+        if (lastState === 0 && liveNeighbors === 3) return 1;
+        if (lastState === 1 && liveNeighbors < 2)   return 0;
+        if (lastState === 1 && liveNeighbors > 3)   return 0;
+        return 1;
+    }
+};</div><div class="canvas-container">
+    <canvas class="viewport" width=700 height=700 id="pixel-grid"></canvas>
+    <div class="fps">FPS: <span id="fps"></span></div>
+    </div>
+    
+    <script>
+        "use strict";
+
+        function rule(rule) {
+            var s = rule.split("/")[0].split("");
+            var b = rule.split("/")[1].split("");
+            for (var i = 0; i < s.length; i++) {
+                s[i] = parseInt(s[i], 10);
+            }
+            for (var i = 0; i < b.length; i++) {
+                b[i] = parseInt(b[i], 10);
+            }
+            return function(lastState, neighbors) {
+                
+            };
+            var liveNeighbors = neighbors.moore.filter(n => n === 1).length;
+            return 0;
+        }
+
+        function HSVtoRGB(h, s, v) {
+            var r, g, b, i, f, p, q, t;
+            if (arguments.length === 1) {
+                s = h.s, v = h.v, h = h.h;
+            }
+            i = Math.floor(h * 6);
+            f = h * 6 - i;
+            p = v * (1 - s);
+            q = v * (1 - f * s);
+            t = v * (1 - (1 - f) * s);
+            switch (i % 6) {
+                case 0: r = v, g = t, b = p; break;
+                case 1: r = q, g = v, b = p; break;
+                case 2: r = p, g = v, b = t; break;
+                case 3: r = p, g = q, b = v; break;
+                case 4: r = t, g = p, b = v; break;
+                case 5: r = v, g = p, b = q; break;
+            }
+            return {
+                r: Math.round(r * 255),
+                g: Math.round(g * 255),
+                b: Math.round(b * 255)
+            };
+        }
+
+        var editor = document.getElementById("editor");;
+        var editor = ace.edit("editor");
+        editor.setShowPrintMargin(false);
+        editor.setTheme("ace/theme/monokai");
+        editor.getSession().setMode("ace/mode/javascript");
+
+        /*var codeObject;
+        editor.getSession().on('change', function() {
+            try {
+                codeObject = eval(editor.getValue());
+                generateAutomata();
+            } catch (e) {
+                // pass
+            }
+        });*/
+
+        var oldScript = undefined;
+        var loadCode = function() {
+            if (typeof oldScript !== "undefined") {
+                document.body.removeChild(oldScript);
+            }
+            var newScript = document.createElement('script');
+            newScript.onload = generateAutomata;
+            newScript.src = "data:," + encodeURI('"use strict";\n' + editor.getValue());
+            document.body.appendChild(newScript);
+            oldScript = newScript;
+        }
+        editor.getSession().on('change', loadCode);
+
+        var canvas = document.getElementById("pixel-grid");
+        var ctx = canvas.getContext("2d");
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled=false;
+
+        var fpsElement = document.getElementById("fps");
+
+        var pixelGrid = new PixleGrid(ctx, 700, 700);
+
+        pixelGrid.onFPSChange(function(fps) {
+            fpsElement.innerHTML = fps;
+        });
+
+        var resolveFunction = function(val) {
+            return (typeof val === "function" ? val() : val);
+        }
+
+        var stateColor = function(state) {
+            if (state == 0) {
+                return {r: 20, g:29, b:37};
+            }
+            else {
+                return {r: 200, g:202, b:204};
+            }
+        }
+
+        var animReq = null;
+
+        var generateAutomata = function() {
+
+            /*var codeObject = {
+                states: [0, 1],
+                update: function(lastState, neighbors) {
+                    var liveNeighbors = neighbors.moore.filter(n => n === 1).length;
+                    
+                    if (lastState === 0 && liveNeighbors !== 3) return 0;
+                    if (lastState === 0 && liveNeighbors === 3) return 1;
+                    if (lastState === 1 && liveNeighbors < 2)   return 0;
+                    if (lastState === 1 && liveNeighbors > 3)   return 0;
+                    return 1;
+                }
+            };*/
+
+            if (animReq !== null)
+                window.cancelAnimationFrame(animReq);
+
+            var gameGrid = [];
+            var newGrid = [];
+
+            var dirtyGrid = [];
+
+            function randNoise(max) {
+                return (2.0*Math.random()-1.0)*max;
+            }
+
+            function generatePallette(numStates, maxNoise) {
+                var pallete = [];
+                var hueStart = Math.random();
+                var hueStep = 1.0/numStates;
+                var targetHue = hueStart;
+                var targetValues =      [0.2, 0.9];
+                var targetSaturations = [0.3, 0.6];
+                for (var i = 0; i < numStates; i++) {
+                    targetHue += hueStep;
+                    var hue = targetHue + randNoise(maxNoise.h);
+                    var sat = targetSaturations[i] + randNoise(maxNoise.s);
+                    var val = targetValues[i] + randNoise(maxNoise.v)
+                    pallete.push(HSVtoRGB({h: hue, s:sat, v:val}));
+                }
+                return pallete;
+            }
+            var mode = codeObject.mode;
+
+            if (typeof mode === "undefined") {
+                mode = "2d";
+            }
+
+            var stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
+
+            for (var y = 0; y < pixelGrid.height; y++) {
+                for (var x = 0; x < pixelGrid.width; x++) {
+                    if (mode === "2d") {
+                       if (Math.random() < 0.2) {
+                            gameGrid.push(1);
+                        } else {
+                            gameGrid.push(0);
+                        }
+                        dirtyGrid.push(true);
+                    //gameGrid.push(resolveFunction(codeObject.states[Math.floor(Math.random()*codeObject.states.length)]));
+                    } else {
+                        gameGrid.push(0);
+                    }
+                    newGrid.push(null);
+                }
+            }
+
+            if (mode === "1d") {
+                for (var x = 0; x < pixelGrid.width; x++) {
+                    gameGrid[x] = resolveFunction(codeObject.states[Math.floor(Math.random()*codeObject.states.length)]);
+                }
+            }
+
+            var neighbors = new Neighbors(pixelGrid.width, pixelGrid.height, 0, codeObject.states);
+            console.trace();
+
+            (function draw() {
+                animReq = requestAnimationFrame(draw);
+
+                neighbors._setGrid(gameGrid);
+
+                for (var i = 0; i < gameGrid.length; i++) {
+                    if (dirtyGrid[i]) {
+
+                        var x = i % pixelGrid.width;
+                        var y = Math.floor(i / pixelGrid.width);
+
+                        neighbors._setCenter(x, y);
+
+                        var newState = codeObject.update(gameGrid[i], neighbors);
+                        newGrid[i] = newState;
+
+                        var color = stateColors[newState];
+                        pixelGrid.setPixel(x, y, color.r, color.g, color.b);
+                    }
+                }
+
+                // Update dirty grid
+                for (var i = 0; i < gameGrid.length; i++) {
+                    if (dirtyGrid[i]) {
+                        var x = i % pixelGrid.width;
+                        var y = Math.floor(i / pixelGrid.width);
+                        if (gameGrid[i] === newGrid[i] && Neighbors._neighborsEqual(gameGrid, newGrid, x, y, pixelGrid.width)) {
+                            dirtyGrid[i] = false;
+                        } else {
+                            Neighbors._setGrid(dirtyGrid, x, y, true, pixelGrid.width);
+                        }
+                        //if (dirtyGrid[i] && newGrid[i] === 0) {
+                        //    pixelGrid.setPixel(x, y, 0, 128, 0);
+                        //}
+                    }
+                }
+
+                // swap grids
+                var tempGrid = gameGrid;
+                gameGrid = newGrid;
+                newGrid = tempGrid;
+
+                pixelGrid.draw();
+
+                /*var t = Date.now();
+                for (var y = 0; y < pixelGrid.width; y++) {
+                    for (var x = 0; x < pixelGrid.height; x++) {
+                        pixelGrid.setPixel(x, y, Math.random()*255, 255, 0);
+                    }
+                }*/
+            })();
+        };
+
+        loadCode();
+    </script>
+</body>
+</html>
