@@ -173,8 +173,6 @@
             var gameGrid = [];
             var newGrid = [];
 
-            var dirtyGrid = [];
-
             function randNoise(max) {
                 return (2.0*Math.random()-1.0)*max;
             }
@@ -211,8 +209,6 @@
                         } else {
                             gameGrid.push(0);
                         }
-                        dirtyGrid.push(true);
-                    //gameGrid.push(resolveFunction(codeObject.states[Math.floor(Math.random()*codeObject.states.length)]));
                     } else {
                         gameGrid.push(0);
                     }
@@ -235,35 +231,16 @@
                 neighbors._setGrid(gameGrid);
 
                 for (var i = 0; i < gameGrid.length; i++) {
-                    if (dirtyGrid[i]) {
+                    var x = i % pixelGrid.width;
+                    var y = Math.floor(i / pixelGrid.width);
 
-                        var x = i % pixelGrid.width;
-                        var y = Math.floor(i / pixelGrid.width);
+                    neighbors._setCenter(x, y);
 
-                        neighbors._setCenter(x, y);
+                    var newState = codeObject.update(gameGrid[i], neighbors);
+                    newGrid[i] = newState;
 
-                        var newState = codeObject.update(gameGrid[i], neighbors);
-                        newGrid[i] = newState;
-
-                        var color = stateColors[newState];
-                        pixelGrid.setPixel(x, y, color.r, color.g, color.b);
-                    }
-                }
-
-                // Update dirty grid
-                for (var i = 0; i < gameGrid.length; i++) {
-                    if (dirtyGrid[i]) {
-                        var x = i % pixelGrid.width;
-                        var y = Math.floor(i / pixelGrid.width);
-                        if (gameGrid[i] === newGrid[i] && Neighbors._neighborsEqual(gameGrid, newGrid, x, y, pixelGrid.width)) {
-                            dirtyGrid[i] = false;
-                        } else {
-                            Neighbors._setGrid(dirtyGrid, x, y, true, pixelGrid.width);
-                        }
-                        //if (dirtyGrid[i] && newGrid[i] === 0) {
-                        //    pixelGrid.setPixel(x, y, 0, 128, 0);
-                        //}
-                    }
+                    var color = stateColors[newState];
+                    pixelGrid.setPixel(x, y, color.r, color.g, color.b);
                 }
 
                 // swap grids
