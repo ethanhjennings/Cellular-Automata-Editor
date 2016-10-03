@@ -45,13 +45,6 @@
         if (lastState === 1 && liveNeighbors < 2)   return 0;
         if (lastState === 1 && liveNeighbors > 3)   return 0;
         return 1;
-    },
-    color: function(state) {
-        if (state === 0) {
-            return {r: 0, g:0, b:0};
-        } else {
-            return {r: 255, g: 255, b:0};
-        }
     }
 };</div><div class="canvas-container">
     <canvas class="viewport" width=700 height=700 id="pixel-grid"></canvas>
@@ -185,13 +178,20 @@
                 }
                 return pallete;
             }
+
+            if (typeof codeObject.color !== "function") {
+                // No color function given, pick some random pretty colors
+                var stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
+                codeObject.color = function(state) {
+                    return stateColors[state];
+                }
+            }
+
             var mode = codeObject.mode;
 
             if (typeof mode === "undefined") {
                 mode = "2d";
             }
-
-            var stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
 
             var initialCells = [];
 
