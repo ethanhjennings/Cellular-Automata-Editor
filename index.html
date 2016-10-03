@@ -3,6 +3,7 @@
     <script src="ace.js"></script>
     <script src="Neighbors.js"></script>
     <script src="PixelGrid.js"></script>
+    <script src="AutomataRunner.js"></script>
     <style type="text/css">
         .editor {
             display: inline-block;
@@ -44,6 +45,13 @@
         if (lastState === 1 && liveNeighbors < 2)   return 0;
         if (lastState === 1 && liveNeighbors > 3)   return 0;
         return 1;
+    },
+    color: function(state) {
+        if (state === 0) {
+            return {r: 0, g:0, b:0};
+        } else {
+            return {r: 255, g: 255, b:0};
+        }
     }
 };</div><div class="canvas-container">
     <canvas class="viewport" width=700 height=700 id="pixel-grid"></canvas>
@@ -100,16 +108,6 @@
         editor.setTheme("ace/theme/monokai");
         editor.getSession().setMode("ace/mode/javascript");
 
-        /*var codeObject;
-        editor.getSession().on('change', function() {
-            try {
-                codeObject = eval(editor.getValue());
-                generateAutomata();
-            } catch (e) {
-                // pass
-            }
-        });*/
-
         var oldScript = undefined;
         var loadCode = function() {
             if (typeof oldScript !== "undefined") {
@@ -131,12 +129,6 @@
 
         var fpsElement = document.getElementById("fps");
 
-        var pixelGrid = new PixleGrid(ctx, 700, 700);
-
-        pixelGrid.onFPSChange(function(fps) {
-            fpsElement.innerHTML = fps;
-        });
-
         var resolveFunction = function(val) {
             return (typeof val === "function" ? val() : val);
         }
@@ -152,26 +144,26 @@
 
         var animReq = null;
 
-        var generateAutomata = function() {
+        /*var myWorker = new Worker("worker.js");
+        var transferData = ctx.createImageData(pixelGrid.width, pixelGrid.height);
+        myWorker.postMessage({
+            type: "begin",
+            width: pixelGrid.width,
+            height: pixelGrid.height,
+            codeObject: codeObject,
+        });
+        myWorker.onmessage = function(e) {
+            alert(e.data);
+        }*/
 
-            /*var codeObject = {
-                states: [0, 1],
-                update: function(lastState, neighbors) {
-                    var liveNeighbors = neighbors.moore.filter(n => n === 1).length;
-                    
-                    if (lastState === 0 && liveNeighbors !== 3) return 0;
-                    if (lastState === 0 && liveNeighbors === 3) return 1;
-                    if (lastState === 1 && liveNeighbors < 2)   return 0;
-                    if (lastState === 1 && liveNeighbors > 3)   return 0;
-                    return 1;
-                }
-            };*/
+        var width = 700;
+        var height = 700;
+
+
+        var generateAutomata = function() {
 
             if (animReq !== null)
                 window.cancelAnimationFrame(animReq);
-
-            var gameGrid = [];
-            var newGrid = [];
 
             function randNoise(max) {
                 return (2.0*Math.random()-1.0)*max;
@@ -201,61 +193,31 @@
 
             var stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
 
-            for (var y = 0; y < pixelGrid.height; y++) {
-                for (var x = 0; x < pixelGrid.width; x++) {
-                    if (mode === "2d") {
-                       if (Math.random() < 0.2) {
-                            gameGrid.push(1);
-                        } else {
-                            gameGrid.push(0);
-                        }
+            var initialCells = [];
+
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    if (Math.random() < 0.2) {
+                        initialCells.push(1);
                     } else {
-                        gameGrid.push(0);
+                        initialCells.push(0);
                     }
-                    newGrid.push(null);
                 }
             }
 
-            if (mode === "1d") {
-                for (var x = 0; x < pixelGrid.width; x++) {
-                    gameGrid[x] = resolveFunction(codeObject.states[Math.floor(Math.random()*codeObject.states.length)]);
-                }
-            }
+            var runner = new AutomataRunner2D(width, height, codeObject, initialCells, ctx);
+            var gridRenderer = new PixelGridRenderer(ctx, runner.pixelGrid);
 
-            var neighbors = new Neighbors(pixelGrid.width, pixelGrid.height, 0, codeObject.states);
-            console.trace();
+            gridRenderer.onFPSChange(function(fps) {
+                fpsElement.innerHTML = fps;
+            });
+
 
             (function draw() {
                 animReq = requestAnimationFrame(draw);
 
-                neighbors._setGrid(gameGrid);
-
-                for (var i = 0; i < gameGrid.length; i++) {
-                    var x = i % pixelGrid.width;
-                    var y = Math.floor(i / pixelGrid.width);
-
-                    neighbors._setCenter(x, y);
-
-                    var newState = codeObject.update(gameGrid[i], neighbors);
-                    newGrid[i] = newState;
-
-                    var color = stateColors[newState];
-                    pixelGrid.setPixel(x, y, color.r, color.g, color.b);
-                }
-
-                // swap grids
-                var tempGrid = gameGrid;
-                gameGrid = newGrid;
-                newGrid = tempGrid;
-
-                pixelGrid.draw();
-
-                /*var t = Date.now();
-                for (var y = 0; y < pixelGrid.width; y++) {
-                    for (var x = 0; x < pixelGrid.height; x++) {
-                        pixelGrid.setPixel(x, y, Math.random()*255, 255, 0);
-                    }
-                }*/
+                runner.runStep();
+                gridRenderer.draw();
             })();
         };
 

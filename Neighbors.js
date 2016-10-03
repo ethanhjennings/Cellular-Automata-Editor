@@ -2,52 +2,16 @@
 
 class Neighbors {
 
-    constructor(gridWidth, gridHeight, defaultState, states) {
+    constructor(gridWidth, gridHeight, defaultState) {
         this._gridWidth = gridWidth;
         this._gridHeight = gridHeight;
         this._defaultState = defaultState;
-        this._states = states;
         this.x = -1;
         this.y = -1;
         this._idx = -1;
         this._grid = null;
         this._moore = new Array(8);
         this._vonNeuman = new Array(4);
-        this._mooreCounts = new Array(this._gridWidth*this._gridHeight);
-        for (var i = 0; i < this._mooreCounts.length; i++) {
-            this._mooreCounts[i] = new Array(this._states.length);
-            for (var j = 0; j < this._states.length; j++) {
-                this._mooreCounts[i][this._states[j]] = 0;
-            }
-        }
-        this._mooreCountsDirty = true;
-        this.run = false;
-    }
-
-    mooreCounts(state) {
-        if (this._mooreCountsDirty) {
-            this._mooreCountsDirty = false;
-            for (var i = 0; i < this._mooreCounts.length; i++) {
-                for (var j = 0; j < this._states.length; j++) {
-                    this._mooreCounts[i][this._states[j]] = 0;
-                }
-            }
-
-            for (var x = 1; x < this._gridWidth - 1; x++) {
-                for (var y = 1; y < this._gridHeight - 1; y++) {
-                    var myState = this._grid[y*this._gridHeight + x];                    
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x ][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                    this._mooreCounts[y*this._gridWidth + x][myState] += 1;
-                }
-            }
-        }
-        return this._mooreCounts[this.y*this._gridHeight + this.x][state];
     }
 
     _coords(x, y, deltaX, deltaY) {
@@ -55,27 +19,12 @@ class Neighbors {
     }
 
     mooreCount(val) {
-        /*var count = 0;
-        var x_left  = this.x > 0;
-        var x_right = this.x < this._gridWidth - 1;
-        var y_top   = this.y > 0;
-        var y_bottom = this.y < this._gridHeight - 1;
-
-        if (this._getNoBoundsCheck(1, 0)   === val && x_right)            count += 1;
-        if (this._getNoBoundsCheck(1, -1)  === val && x_right && y_top)   count += 1;
-        if (this._getNoBoundsCheck(0, -1)  === val && y_top)              count += 1;
-        if (this._getNoBoundsCheck(-1, -1) === val && x_left && y_top)    count += 1;
-        if (this._getNoBoundsCheck(-1, 0)  === val && x_left)             count += 1;
-        if (this._getNoBoundsCheck(-1, 1)  === val && x_left && y_bottom) count += 1;
-        if (this._getNoBoundsCheck(0, 1)   === val && y_bottom)           count += 1;
-        if (this._getNoBoundsCheck(1, 1)   === val && x_right && y_bottom)count += 1;*/
-
         // Ideally moore() and vonNeuman() would be more similar
         // But this way is faster for 8 elements.
         var startX = Math.max(this.x-1, 0);
-        var endX   = Math.min(this.x+1, this._gridWidth);
+        var endX   = Math.min(this.x+1, this._gridWidth - 1);
         var startY = Math.max(this.y-1, 0);
-        var endY   = Math.min(this.y+1, this._gridHeight);
+        var endY   = Math.min(this.y+1, this._gridHeight - 1);
 
         var count = 0;
 
@@ -84,7 +33,6 @@ class Neighbors {
             for (var y = startY; y <= endY; y++) {
                 if (this._grid[y*this._gridHeight + x] === val && (x != this.x || y != this.y)) {
                     count += 1;
-                    //this._moore[i] = this._grid[y*this._gridHeight + x];
                     i++;
                 }
             }
