@@ -95,6 +95,21 @@
             };
         }
 
+        function JSONstringifyWithFunctions(obj) {
+            return JSON.stringify(obj, function(k, v) {
+                if (k === "___isFunction" || k === "___value") {
+                    return v;
+                }
+                else if (typeof v === 'function') {
+                    return {___isFunction: true, ___value: v.toString()};
+                } else if (typeof v.isFunction === "undefined") {
+                    return {___isFunction: false, ___value: v};
+                }
+            });
+        }
+
+        var usingWebworkers = true;
+
         var editor = document.getElementById("editor");;
         var editor = ace.edit("editor");
         editor.setShowPrintMargin(false);
@@ -135,23 +150,22 @@
             }
         }
 
-        var animReq = null;
+        var initialCells = [];
 
-        /*var myWorker = new Worker("worker.js");
-        var transferData = ctx.createImageData(pixelGrid.width, pixelGrid.height);
-        myWorker.postMessage({
-            type: "begin",
-            width: pixelGrid.width,
-            height: pixelGrid.height,
-            codeObject: codeObject,
-        });
-        myWorker.onmessage = function(e) {
-            alert(e.data);
-        }*/
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
+                if (Math.random() < 0.2) {
+                    initialCells.push(1);
+                } else {
+                    initialCells.push(0);
+                }
+            }
+        }
 
         var width = 700;
         var height = 700;
 
+        var animReq = null;
 
         var generateAutomata = function() {
 
@@ -193,18 +207,6 @@
                 mode = "2d";
             }
 
-            var initialCells = [];
-
-            for (var y = 0; y < height; y++) {
-                for (var x = 0; x < width; x++) {
-                    if (Math.random() < 0.2) {
-                        initialCells.push(1);
-                    } else {
-                        initialCells.push(0);
-                    }
-                }
-            }
-
             var runner = new AutomataRunner2D(width, height, codeObject, initialCells, ctx);
             var gridRenderer = new PixelGridRenderer(ctx, runner.pixelGrid);
 
@@ -212,11 +214,31 @@
                 fpsElement.innerHTML = fps;
             });
 
+            var workerRunner;
+            if (usingWebworkers) {
+                workerRunner = new Worker("worker.js");
+                workerRunner.postMessage({
+                    type: "begin",
+                    width: width,
+                    height: height,
+                    codeObject: JSONstringifyWithFunctions(codeObject),
+                    initialCells: initialCells,
+                });
+                workerRunner.onmessage = function(e) {
+                    var oldBuffer = runner.pixelGrid.setPixelGridFromBuffer(e.data);
+                    workerRunner.postMessage({
+                        type: "step",
+                        buffer: oldBuffer,
+                    }, [oldBuffer]);
+                }
+            }
 
             (function draw() {
                 animReq = requestAnimationFrame(draw);
 
-                runner.runStep();
+                if (!usingWebworkers) {
+                    runner.runStep();
+                }
                 gridRenderer.draw();
             })();
         };

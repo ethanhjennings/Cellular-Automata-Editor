@@ -1,7 +1,7 @@
 "use strict";
 
 class PixelGrid {
-    constructor(width, height) {
+    constructor(width, height, numBuffers) {
         this.width = width;
         this.height = height;
         this._image = new ImageData(this.width, this.height);
@@ -19,6 +19,16 @@ class PixelGrid {
         this._image.data[idx] = c.r;
         this._image.data[idx + 1] = c.g;
         this._image.data[idx + 2] = c.b;
+    }
+
+    get buffer() {
+        return this._image.data.buffer;
+    }
+
+    setPixelGridFromBuffer(buffer) {
+        var oldBuffer = this._image.data.buffer;
+        this._image = new ImageData(new Uint8ClampedArray(buffer));
+        return oldBuffer;
     }
 }
 
