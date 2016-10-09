@@ -4,26 +4,27 @@ importScripts("Neighbors.js");
 importScripts("PixelGrid.js");
 importScripts("AutomataRunner.js");
 
+var numPixelBuffers = 3;
+
+this.pixelBuffers = new Array(numPixelBuffers);
+
+this.codeObject = null;
+this.runner = null;
 
 onmessage = function(e) {
     if (e.data.type === "begin") {
 
-        this.codeObject = JSON.parse(e.data.codeObject, function (k, v) {
-            if (k === "___isFunction" || k ==="___")
-            if (v.___isFunction) {
-                return eval("(" + v.___value + ")");
-            } else {
-                return v.___value;
-            }
-        });
+        codeObject = eval("(" + e.data.codeObject + ")");
 
-        var pixelBuffers = new Array(numPixelBuffers);
         for (var i = 0; i < numPixelBuffers; i++) {
             pixelBuffers[i] = new PixelGrid(e.data.width, e.data.height);
         }
 
-        this.runner = new AutomataRunner(e.data.width,      e.data.height, 
-                                         this.codeObject, e.data.initialCells);
+        runner = new AutomataRunner2D(e.data.width,      e.data.height, 
+                                        codeObject, e.data.initialCells);
+
+        this.runner.runStep();
+        postMessage(this.runner.pixelGrid.buffer, [this.runner.pixelGrid.buffer]);
     } else if (e.data.type === "step") {
         this.runner.pixelGrid.setPixelGridFromBuffer(e.data.buffer)
         this.runner.runStep();

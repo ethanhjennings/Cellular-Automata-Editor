@@ -95,17 +95,36 @@
             };
         }
 
-        function JSONstringifyWithFunctions(obj) {
-            return JSON.stringify(obj, function(k, v) {
-                if (k === "___isFunction" || k === "___value") {
+        function JSONstringifyCodeObject(obj) {
+            var funcPlaceholder = "___FUNCTION_PLACEHOLDER___";
+            var funcList = [];
+            
+            // Not sure if elements are always evaluated in order.
+            // If not, this funcIdx will help keep track of which placeholder 
+            // maps to which function.
+            var funcIdx = 0;
+
+            var json = JSON.stringify(obj, function(k, v) {
+                if (typeof v === "function") {
+                    funcList.push(v);
+                    var placeholder = funcPlaceholder + funcIdx;
+                    funcIdx++;
+                    return placeholder;
+                } else {
                     return v;
                 }
-                else if (typeof v === 'function') {
-                    return {___isFunction: true, ___value: v.toString()};
-                } else if (typeof v.isFunction === "undefined") {
-                    return {___isFunction: false, ___value: v};
-                }
             });
+
+            // Put back in actual function code
+            for (var i = 0; i < funcList.length; i++) {
+                json = json.replace('"' + funcPlaceholder + i + '"', "" + funcList[i]);
+            }
+
+            // Stolen from http://stackoverflow.com/questions/11233498/json-stringify-without-quotes-on-properties
+            // Removes quotes around property names
+            json.replace(/\\"/g,"\uFFFF");
+            json = json.replace(/\"([^"]+)\":/g,"$1:").replace(/\uFFFF/g,"\\\"");
+            return json;
         }
 
         var usingWebworkers = true;
@@ -150,6 +169,9 @@
             }
         }
 
+        var width = 700;
+        var height = 700;
+
         var initialCells = [];
 
         for (var y = 0; y < height; y++) {
@@ -161,9 +183,6 @@
                 }
             }
         }
-
-        var width = 700;
-        var height = 700;
 
         var animReq = null;
 
@@ -195,9 +214,9 @@
 
             if (typeof codeObject.color !== "function") {
                 // No color function given, pick some random pretty colors
-                var stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
+                codeObject.__stateColors = generatePallette(codeObject.states.length, {h: 0.1, s:0.2, v: 0.2});
                 codeObject.color = function(state) {
-                    return stateColors[state];
+                    return this.__stateColors[state];
                 }
             }
 
@@ -221,7 +240,7 @@
                     type: "begin",
                     width: width,
                     height: height,
-                    codeObject: JSONstringifyWithFunctions(codeObject),
+                    codeObject: JSONstringifyCodeObject(codeObject),
                     initialCells: initialCells,
                 });
                 workerRunner.onmessage = function(e) {
@@ -230,6 +249,7 @@
                         type: "step",
                         buffer: oldBuffer,
                     }, [oldBuffer]);
+                    gridRenderer.draw();
                 }
             }
 
@@ -239,7 +259,7 @@
                 if (!usingWebworkers) {
                     runner.runStep();
                 }
-                gridRenderer.draw();
+                //gridRenderer.draw();
             })();
         };
 

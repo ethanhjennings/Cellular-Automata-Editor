@@ -27,7 +27,7 @@ class PixelGrid {
 
     setPixelGridFromBuffer(buffer) {
         var oldBuffer = this._image.data.buffer;
-        this._image = new ImageData(new Uint8ClampedArray(buffer));
+        this._image = new ImageData(new Uint8ClampedArray(buffer), this.width, this.height);
         return oldBuffer;
     }
 }
