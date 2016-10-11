@@ -153,6 +153,9 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.imageSmoothingEnabled=false;
+        ctx.webkitImageSmoothingEnabled=false;
+        qctx.mozImageSmoothingEnabled=false;
+
 
         var fpsElement = document.getElementById("fps");
 
@@ -169,8 +172,8 @@
             }
         }
 
-        var width = 700;
-        var height = 700;
+        var width = 200;
+        var height = 200;
 
         var initialCells = [];
 
@@ -249,7 +252,6 @@
                         type: "step",
                         buffer: oldBuffer,
                     }, [oldBuffer]);
-                    gridRenderer.draw();
                 }
             }
 
@@ -259,7 +261,7 @@
                 if (!usingWebworkers) {
                     runner.runStep();
                 }
-                //gridRenderer.draw();
+                gridRenderer.draw();
             })();
         };
 
